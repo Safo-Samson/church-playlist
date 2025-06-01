@@ -77,6 +77,7 @@ const AppContainer = styled.div`
   justify-content: center;
   padding: 20px;
   color: white;
+  border-radius: 8px;
 `;
 
 const PlayerCard = styled.div`
@@ -107,6 +108,7 @@ const AlbumArt = styled.div<{ $artUrl: string }>`
   align-items: flex-end;
   padding: 24px;
   box-shadow: inset 0 -100px 60px -5px rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
   @media (max-width: 480px) {
     height: 300px;

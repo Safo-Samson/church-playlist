@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlay, faPause, faStepForward, faStepBackward, faVolumeUp, faMusic } from "@fortawesome/free-solid-svg-icons";
 
 interface Track {
   name: string;
@@ -472,25 +474,25 @@ function App() {
 
           <Controls>
             <Button onClick={prevSong} aria-label="Previous song">
-              ⏮
+              <FontAwesomeIcon icon={faStepBackward} />
             </Button>
             <PlayPauseButton onClick={playPause} aria-label={isPlaying ? "Pause" : "Play"}>
-              {isPlaying ? "⏸" : "▶"}
+              <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
             </PlayPauseButton>
             <Button onClick={nextSong} aria-label="Next song">
-              ⏭
+              <FontAwesomeIcon icon={faStepForward} />
             </Button>
           </Controls>
 
           <VolumeControl>
             <label htmlFor="volume">
-              <span>🔊</span> Volume:
+              <FontAwesomeIcon icon={faVolumeUp} /> Volume:
             </label>
             <input id="volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange} aria-label="Volume control" />
           </VolumeControl>
 
           <PlaylistButton>
-            <span>🎵</span> Playlist by Kotoko Band
+            <FontAwesomeIcon icon={faMusic} /> Playlist by Kotoko Band
           </PlaylistButton>
         </PlayerControls>
       </PlayerCard>

@@ -324,7 +324,7 @@ function App() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolume] = useState<number>(0.7);
+  const [volume, setVolume] = useState<number>(0.5);
   const [isReady, setIsReady] = useState<boolean>(false);
   const [visualizerData, setVisualizerData] = useState<number[]>([]);
 

@@ -71,7 +71,6 @@ const fadeIn = keyframes`
 const AppContainer = styled.div`
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   box-sizing: border-box;
-  background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;

@@ -8,6 +8,7 @@ import {
   faStepBackward, 
   faVolumeUp, 
   faMusic,
+  faVolumeMute,
   faSpinner
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -356,12 +357,17 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
   const [userInteracted, setUserInteracted] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [showVolumePercentage, setShowVolumePercentage] = useState<boolean>(false);
+  const [prevVolume, setPrevVolume] = useState<number>(0.5); // To store volume before mute
 
   const audioRef = useRef<HTMLAudioElement | null>(null); 
   //@ts-ignore
   const animationRef = useRef<number>(); 
   //@ts-ignore
   const visualizerInterval = useRef<NodeJS.Timeout>();
+  //@ts-ignore
+  const volumeTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Detect touch device and handle initial interaction
   useEffect(() => {
@@ -500,9 +506,52 @@ function App() {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
     setVolume(newVolume);
+    
+    if (newVolume === 0) {
+      setIsMuted(true);
+    } else {
+      setIsMuted(false);
+      setPrevVolume(newVolume); // Update previous volume when changing
+    }
+    
     if (audioRef.current) {
       audioRef.current.volume = isTouchDevice ? (userInteracted ? newVolume : 0) : newVolume;
     }
+    
+    // Show volume percentage temporarily
+    setShowVolumePercentage(true);
+    if (volumeTimeoutRef.current) {
+      clearTimeout(volumeTimeoutRef.current);
+    }
+    volumeTimeoutRef.current = setTimeout(() => {
+      setShowVolumePercentage(false);
+    }, 1000);
+  };
+
+  const toggleMute = () => {
+    if (!audioRef.current) return;
+    
+    if (isMuted) {
+      // Unmute and restore to previous volume
+      audioRef.current.volume = prevVolume;
+      setVolume(prevVolume);
+      setIsMuted(false);
+    } else {
+      // Mute and store current volume
+      setPrevVolume(volume);
+      audioRef.current.volume = 0;
+      setVolume(0);
+      setIsMuted(true);
+    }
+    
+    // Show volume percentage temporarily
+    setShowVolumePercentage(true);
+    if (volumeTimeoutRef.current) {
+      clearTimeout(volumeTimeoutRef.current);
+    }
+    volumeTimeoutRef.current = setTimeout(() => {
+      setShowVolumePercentage(false);
+    }, 1000);
   };
 
   const formatTime = (time: number) => {
@@ -565,10 +614,41 @@ function App() {
           </Controls>
 
           <VolumeControl>
-            <label htmlFor="volume">
-              <FontAwesomeIcon icon={faVolumeUp} /> Volume:
-            </label>
-            <input id="volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange} aria-label="Volume control" />
+            <Button 
+              onClick={toggleMute} 
+              aria-label={isMuted ? "Unmute" : "Mute"}
+              style={{ width: '40px', height: '40px', padding: '8px' }}
+            >
+              <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeUp} />
+            </Button>
+            <div style={{ position: 'relative', flexGrow: 1 }}>
+              <input 
+                id="volume" 
+                type="range" 
+                min="0" 
+                max="1" 
+                step="0.01" 
+                value={volume} 
+                onChange={handleVolumeChange} 
+                aria-label="Volume control" 
+                style={{ width: '100%' }}
+              />
+              {showVolumePercentage && (
+                <div style={{
+                  position: 'absolute',
+                  top: '-25px',
+                  right: `${volume * 100}%`,
+                  transform: 'translateX(50%)',
+                  background: 'rgba(0,0,0,0.7)',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  fontSize: '0.7rem',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {Math.round(volume * 100)}%
+                </div>
+              )}
+            </div>
           </VolumeControl>
 
           <PlaylistButton>

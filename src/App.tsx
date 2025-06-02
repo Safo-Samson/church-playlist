@@ -1,7 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPlay, faPause, faStepForward, faStepBackward, faVolumeUp, faMusic } from "@fortawesome/free-solid-svg-icons";
+import { 
+  faPlay, 
+  faPause, 
+  faStepForward, 
+  faStepBackward, 
+  faVolumeUp, 
+  faMusic,
+  faSpinner
+} from "@fortawesome/free-solid-svg-icons";
 
 interface Track {
   name: string;
@@ -77,7 +85,7 @@ const AppContainer = styled.div`
   justify-content: center;
   padding: 20px;
   color: white;
-  border-radius: 8px;
+  position: relative;
 `;
 
 const PlayerCard = styled.div`
@@ -90,6 +98,7 @@ const PlayerCard = styled.div`
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   animation: ${fadeIn} 0.6s ease-out;
+  position: relative;
 
   @media (max-width: 480px) {
     max-width: 100%;
@@ -320,6 +329,22 @@ const PlaylistButton = styled.button`
   }
 `;
 
+const MobileOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  text-align: center;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+`;
+
 function App() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -328,12 +353,37 @@ function App() {
   const [volume, setVolume] = useState<number>(0.5);
   const [isReady, setIsReady] = useState<boolean>(false);
   const [visualizerData, setVisualizerData] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
+  const [userInteracted, setUserInteracted] = useState<boolean>(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null); 
   //@ts-ignore
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(); 
   //@ts-ignore
   const visualizerInterval = useRef<NodeJS.Timeout>();
+
+  // Detect touch device and handle initial interaction
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    
+    const handleFirstInteraction = () => {
+      setUserInteracted(true);
+      if (audioRef.current && isPlaying) {
+        audioRef.current.play().catch(e => console.error("Playback failed:", e));
+      }
+      document.removeEventListener('touchstart', handleFirstInteraction);
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+
+    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+    document.addEventListener('click', handleFirstInteraction, { once: true });
+
+    return () => {
+      document.removeEventListener('touchstart', handleFirstInteraction);
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+  }, []);
 
   // Generate random visualizer data
   useEffect(() => {
@@ -353,6 +403,8 @@ function App() {
 
   // Initialize audio and handle track changes
   useEffect(() => {
+    if (!userInteracted && isTouchDevice) return;
+
     // Clean up previous audio if it exists
     if (audioRef.current) {
       audioRef.current.pause();
@@ -360,16 +412,20 @@ function App() {
       cancelAnimationFrame(animationRef.current);
     }
 
-    // Create new audio element
-    const audio = new Audio(playlist[currentTrackIndex].src);
-    audioRef.current = audio;
+    const audio = new Audio();
+    audio.src = playlist[currentTrackIndex].src;
+    audio.preload = "auto";
     audio.volume = volume;
+    audioRef.current = audio;
+
+    // iOS requires this for metadata to load properly
+    audio.load();
 
     const handleLoadedData = () => {
-      setDuration(audio.duration);
+      setDuration(audio.duration || 0);
       setIsReady(true);
-      if (isPlaying) {
-        audio.play().catch((e) => console.error("Playback failed:", e));
+      if (isPlaying && userInteracted) {
+        audio.play().catch(e => console.error("Playback failed:", e));
       }
     };
 
@@ -381,36 +437,46 @@ function App() {
       setIsPlaying(false);
     };
 
-    audio.addEventListener("loadeddata", handleLoadedData);
+    audio.addEventListener("loadedmetadata", handleLoadedData);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
 
     return () => {
-      audio.removeEventListener("loadeddata", handleLoadedData);
+      audio.removeEventListener("loadedmetadata", handleLoadedData);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
       audio.pause();
       cancelAnimationFrame(animationRef.current);
     };
-  }, [currentTrackIndex]);
+  }, [currentTrackIndex, userInteracted, isTouchDevice]);
 
   // Handle play/pause
   useEffect(() => {
     if (!audioRef.current || !isReady) return;
 
     if (isPlaying) {
-      audioRef.current.play().catch((e) => {
-        console.error("Playback failed:", e);
-        setIsPlaying(false);
-      });
+      setIsLoading(true);
+      audioRef.current.play()
+        .then(() => setIsLoading(false))
+        .catch(e => {
+          console.error("Playback failed:", e);
+          setIsLoading(false);
+          setIsPlaying(false);
+        });
     } else {
       audioRef.current.pause();
     }
   }, [isPlaying, isReady]);
 
   const playPause = () => {
+    if (!userInteracted && isTouchDevice) {
+      setUserInteracted(true);
+      setIsPlaying(true);
+      return;
+    }
+
     setIsPlaying(!isPlaying);
   };
 
@@ -435,7 +501,7 @@ function App() {
     const newVolume = Number(e.target.value);
     setVolume(newVolume);
     if (audioRef.current) {
-      audioRef.current.volume = newVolume;
+      audioRef.current.volume = isTouchDevice ? (userInteracted ? newVolume : 0) : newVolume;
     }
   };
 
@@ -450,6 +516,15 @@ function App() {
 
   return (
     <AppContainer>
+      {!userInteracted && isTouchDevice && (
+        <MobileOverlay>
+          <div>
+            <h3>Welcome to Kotoko Band Player</h3>
+            <p>Tap anywhere to enable audio playback</p>
+          </div>
+        </MobileOverlay>
+      )}
+      
       <PlayerCard>
         <AlbumArt $artUrl={playlist[currentTrackIndex].cover}>
           <TrackInfo>
@@ -478,7 +553,11 @@ function App() {
               <FontAwesomeIcon icon={faStepBackward} />
             </Button>
             <PlayPauseButton onClick={playPause} aria-label={isPlaying ? "Pause" : "Play"}>
-              <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
+              {isLoading ? (
+                <FontAwesomeIcon icon={faSpinner} spin />
+              ) : (
+                <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} />
+              )}
             </PlayPauseButton>
             <Button onClick={nextSong} aria-label="Next song">
               <FontAwesomeIcon icon={faStepForward} />

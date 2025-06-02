@@ -637,7 +637,7 @@ function App() {
                 <div style={{
                   position: 'absolute',
                   top: '-25px',
-                  right: `${volume * 100}%`,
+                  left: `${volume * 100}%`,
                   transform: 'translateX(50%)',
                   background: 'rgba(0,0,0,0.7)',
                   padding: '2px 8px',
